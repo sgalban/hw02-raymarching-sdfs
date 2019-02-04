@@ -13,6 +13,12 @@ const float EPSILON = 0.0001;
 const float NEAR_CLIP = 0.1;
 const float FAR_CLIP = 1000.0;
 
+struct SdfPoint {
+    bool intersects;
+    vec3 pos;
+    vec3 normal;
+};
+
 vec3 generateBackgroundColor (vec3 rayDir) {
     return vec3(0.0);
 }
@@ -53,24 +59,45 @@ vec3 rotateSdf(inout vec3 p, float angle, vec3 axis) {
 }
 
 float totalSdf(vec3 p) {
-    float offset = (sin(u_Time * 0.03) + 1.0) * 0.0;
-    rotateSdf(p, u_Time * 0.8, vec3(0, 0, 1));
-    float t1 = torusSdf(vec3(0), 2.0, 0.5, p);
-    rotateSdf(p, 2.0 * u_Time * 0.8, vec3(0, 0, 1));
-    float t2 = torusSdf(vec3(0), 2.0, 0.5, p);
-    return unionSdf(t1, t2, 1.0);
+    return sphereSdf(vec3(0), 2.0, p);
 }
 
-vec3 raycast(vec3 rayDir) {
+vec3 getNormal(vec3 p) {
+    vec3 dx = vec3(EPSILON, 0, 0);
+    vec3 dy = vec3(0, EPSILON, 0);
+    vec3 dz = vec3(0, 0, EPSILON);
+
+    float gradX = totalSdf(p + dx) - totalSdf(p - dx);
+    float gradY = totalSdf(p + dy) - totalSdf(p - dy);
+    float gradZ = totalSdf(p + dz) - totalSdf(p - dz);
+    return -normalize(vec3(gradX, gradY, gradZ));
+}
+
+SdfPoint raycast(vec3 rayDir) {
     vec3 curPoint = u_Eye;
+    SdfPoint intersection;
+    intersection.intersects = false;
     while(distance(curPoint, u_Eye) < FAR_CLIP) {
         float distance = totalSdf(curPoint);
         if (abs(distance) < EPSILON) {
-            return (normalize(curPoint) + vec3(1.0)) * 0.5;
+            intersection.intersects = true;
+            intersection.pos = curPoint;
+            intersection.normal = getNormal(curPoint);
+            return intersection;
         }
         curPoint += rayDir * abs(distance);
     }
-    return generateBackgroundColor(rayDir);
+    return intersection;
+}
+
+vec3 getRaycastColor(SdfPoint sdf, vec3 rayDir, vec3 camForward) {
+    if (sdf.intersects) {
+        float lambertianFactor = dot(camForward, sdf.normal);
+        return normalize((normalize(sdf.normal) + vec3(1)) * 0.5) * lambertianFactor;
+    }
+    else {
+        return generateBackgroundColor(rayDir);
+    }
 }
 
 void main() {
@@ -85,6 +112,6 @@ void main() {
     vec3 worldPoint = u_Ref + H * fs_Pos.x + V * fs_Pos.y;
     vec3 rayDir = normalize(worldPoint - u_Eye);
 
-    vec3 color = raycast(rayDir);
+    vec3 color = getRaycastColor(raycast(rayDir), rayDir, forward);
     out_Col = vec4(color, 1);//vec4(0.5 * (fs_Pos + vec2(1.0)), 0.5 * (sin(u_Time * 3.14159 * 0.01) + 1.0), 1.0);
 }
