@@ -10,8 +10,10 @@ import ShaderProgram, {Shader} from './rendering/gl/ShaderProgram';
 // Define an object with application parameters and button callbacks
 // This will be referred to by dat.GUI's functions that add GUI elements.
 const controls = {
-  tesselations: 5,
-  'Load Scene': loadScene, // A function pointer, essentially
+    'Time Speed': 1.0,
+    'Light Direction X': 0.6666,
+    'Light Direction Y': 0.6666,
+    'Light Direction Z': 0.3333
 };
 
 let square: Square;
@@ -47,6 +49,10 @@ function main() {
 
   // Add controls to the gui
   const gui = new DAT.GUI();
+  gui.add(controls, "Time Speed", 0.0, 20.0);
+  gui.add(controls, "Light Direction X", -1.0, 1.0).listen();
+  gui.add(controls, "Light Direction Y", -1.0, 1.0).listen();
+  gui.add(controls, "Light Direction Z", -1.0, 1.0).listen();
 
   // get canvas and webgl context
   const canvas = <HTMLCanvasElement> document.getElementById('canvas');
@@ -86,7 +92,23 @@ function main() {
     renderer.render(camera, flat, [
       square,
     ], time);
-    time++;
+    time += controls["Time Speed"];
+
+    const normalization = Math.sqrt(
+        Math.pow(controls["Light Direction X"], 2) +
+        Math.pow(controls["Light Direction Y"], 2) + 
+        Math.pow(controls["Light Direction Z"], 2)
+    );
+
+    controls["Light Direction X"] /= normalization;
+    controls["Light Direction Y"] /= normalization;
+    controls["Light Direction Z"] /= normalization;
+
+    flat.setLight(vec3.fromValues(
+        controls["Light Direction X"],
+        controls["Light Direction Y"],
+        controls["Light Direction Z"]
+    ));
     stats.end();
 
     // Tell the browser to call `tick` again whenever it renders a new frame
