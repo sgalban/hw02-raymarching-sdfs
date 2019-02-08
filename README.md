@@ -15,7 +15,7 @@ and capped cones. Sphere marching is used to test against these equations.
 - I calculated the normal at every point in the scene by finding the gradient difference for all 3 components, and then normalizing those values into a single vector.
 - Once a ray hits an SDF, it produces an SdfPoint struct. This allows me to include valuable information regarding the SDF,
 in addition to the distance, including the object material and the normal at the point it was hit.
-- I did use a bounding box on the ship itself. Unforunately, because of time constraints, I was unable to optimize further.
+- I used a few bounding volumes to optimize the scene. There is one encapsulating the planet and its ring, another containing the ship and the fire, and a sub-bounding box containing only the actual ship. These were simply implememented as if-statements in my total SDF function. I did not put a bounding box around each individual shape, as time constraints prevented me from doing so, but there are so few shapes in my scene anyway that adding more bounding volumes started to lower the framerate a bit.
 - Altogether, I used the primitive shapes to produce a simple spaceship scene seen above.
 
 ## Shaders

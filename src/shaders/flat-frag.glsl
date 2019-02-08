@@ -211,53 +211,58 @@ SdfPoint totalSdf(vec3 p, vec3 origin, vec3 rayDir, bool ignoreBoxes) {
     float test = boxSdf(-shipOffset, vec3(3, 2, 2.5), p);
 
     float planetOffset = mod(u_Time * 0.5, 200.0);
-    translateSdf(p, vec3(planetOffset, 0, 0));
-    sphere3 = sphereSdf(vec3(100, 0, 7), 2.0, p);
 
-    ring = intersectSdf(
-        torusSdf(vec3(100, 0.5, 7), 3.0, 0.8, p),
-        torusSdf(vec3(100, -0.5, 7), 3.0, 0.8, p),
-        0.05
-    );
-    translateSdf(p, vec3(-planetOffset, 0, 0));
+    if (ignoreBoxes || hitBoundingBox(vec3(-planetOffset, 0, 0), vec3(3), origin, rayDir)) {
+        translateSdf(p, vec3(planetOffset, 0, 0));
+        sphere3 = sphereSdf(vec3(100, 0, 7), 2.0, p);
+
+        ring = intersectSdf(
+            torusSdf(vec3(100, 0.5, 7), 3.0, 0.8, p),
+            torusSdf(vec3(100, -0.5, 7), 3.0, 0.8, p),
+            0.05
+        );
+        translateSdf(p, vec3(-planetOffset, 0, 0));
+    }
 
     translateSdf(p, shipOffset);
 
-    if (ignoreBoxes || hitBoundingBox(-shipOffset, vec3(3.0, 2.0, 2.5) * 5.0, origin, rayDir)) {
-        sphere1 = sphereSdf(vec3(1, 0, 0), 1.1, p);
-        box1 = boxSdf(vec3(1.4, 0.5, 0), vec3(0.6, 0.6, 1.0), p);
-        capsule1 = capsuleSdf(vec3(0), vec3(-1, 0, 0), vec3(1, 0, 0), 1.0, p);
+    if (ignoreBoxes || hitBoundingBox(-shipOffset, vec3(7.0, 3.0, 3.5), origin, rayDir)) {
+        if (ignoreBoxes || hitBoundingBox(-shipOffset, vec3(4.0, 2.0, 3.5), origin, rayDir)) {
+            sphere1 = sphereSdf(vec3(1, 0, 0), 1.1, p);
+            box1 = boxSdf(vec3(1.4, 0.5, 0), vec3(0.6, 0.6, 1.0), p);
+            capsule1 = capsuleSdf(vec3(0), vec3(-1, 0, 0), vec3(1, 0, 0), 1.0, p);
 
-        wings = unionSdf(
-            triangleSdf(vec3(0), vec3(0.0, 0, 1), vec3(-0.8, 0, 1), vec3(-0.6, 0, 2.0), p) - 0.3,
-            triangleSdf(vec3(0), vec3(0.0, 0, -1), vec3(-0.8, 0, -1), vec3(-0.6, 0, -2.0), p) - 0.3, 0.0
-        );
+            wings = unionSdf(
+                triangleSdf(vec3(0), vec3(0.0, 0, 1), vec3(-0.8, 0, 1), vec3(-0.6, 0, 2.0), p) - 0.3,
+                triangleSdf(vec3(0), vec3(0.0, 0, -1), vec3(-0.8, 0, -1), vec3(-0.6, 0, -2.0), p) - 0.3, 0.0
+            );
+
+            translateSdf(p, vec3(2, 0, 0));
+            rotateSdf(p, 90.0, ZAXIS);
+            cone1 = cappedConeSdf(vec3(0), 0.5, 1.7, 1.2, p);
+            translateSdf(p, vec3(0, 0.8, 0));
+            cone2 = cappedConeSdf(vec3(0), 0.5, 1.4, 0.8, p);
+            translateSdf(p, vec3(0, -0.3, 0));
+            cone3 = cappedConeSdf(vec3(0), 0.35, 0.7, 0.5, p);
+            translateSdf(p, vec3(0, 0.8, 0));
+            cone4 = cappedConeSdf(vec3(0), 0.35, 0.5, 0.3, p);
+            translateSdf(p, vec3(0, -3.3, 0));
+            sphere2 = sphereSdf(vec3(0, 1, 0), 1.1, p);
+            rotateSdf(p, -90.0, ZAXIS);
+        }
 
         translateSdf(p, vec3(2, 0, 0));
-        rotateSdf(p, 90.0, ZAXIS);
-        cone1 = cappedConeSdf(vec3(0), 0.5, 1.7, 1.2, p);
-        translateSdf(p, vec3(0, 0.8, 0));
-        cone2 = cappedConeSdf(vec3(0), 0.5, 1.4, 0.8, p);
-        translateSdf(p, vec3(0, -0.3, 0));
-        cone3 = cappedConeSdf(vec3(0), 0.35, 0.7, 0.5, p);
-        translateSdf(p, vec3(0, 0.8, 0));
-        cone4 = cappedConeSdf(vec3(0), 0.35, 0.5, 0.3, p);
-        translateSdf(p, vec3(0, -3.3, 0));
-        sphere2 = sphereSdf(vec3(0, 1, 0), 1.1, p);
-        rotateSdf(p, -90.0, ZAXIS);
+        float bubbleFactor = mod(u_Time * 0.1, 3.0) / 3.0;
+        bubble1 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, 0, 0), 1.2 * smoothInOut(bubbleFactor), p);
+        bubbleFactor = mod(u_Time * 0.1, 4.0) / 4.0;
+        bubble2 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, 0.5, 0.5), smoothInOut(bubbleFactor) * 0.5, p);
+        bubbleFactor = mod(u_Time * 0.1, 2.0) / 2.0;
+        bubble3 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, -0.3, 0.6), smoothInOut(bubbleFactor) * 0.7, p);
+        bubbleFactor = mod(u_Time * 0.1, 3.0) / 3.0;
+        bubble4 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, 0.7, -0.6), smoothInOut(bubbleFactor), p);
+        bubble = unionSdf(unionSdf(bubble1, bubble2, 0.7), unionSdf(bubble3, bubble4, 0.7), 0.7);
+        translateSdf(p, vec3(-2, 0, 0));
     }
-
-    translateSdf(p, vec3(2, 0, 0));
-    float bubbleFactor = mod(u_Time * 0.1, 3.0) / 3.0;
-    bubble1 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, 0, 0), 1.2 * smoothInOut(bubbleFactor), p);
-    bubbleFactor = mod(u_Time * 0.1, 4.0) / 4.0;
-    bubble2 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, 0.5, 0.5), smoothInOut(bubbleFactor) * 0.5, p);
-    bubbleFactor = mod(u_Time * 0.1, 2.0) / 2.0;
-    bubble3 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, -0.3, 0.6), smoothInOut(bubbleFactor) * 0.7, p);
-    bubbleFactor = mod(u_Time * 0.1, 3.0) / 3.0;
-    bubble4 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, 0.7, -0.6), smoothInOut(bubbleFactor), p);
-    bubble = unionSdf(unionSdf(bubble1, bubble2, 0.7), unionSdf(bubble3, bubble4, 0.7), 0.7);
-    translateSdf(p, vec3(-2, 0, 0));
 
     // Body
     SdfPoint res = toSdfPoint(unionSdf(
