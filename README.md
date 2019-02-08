@@ -1,89 +1,41 @@
-# CIS 566 Homework 2: Implicit Surfaces
+# CIS 566 Homework 2: Raymarching SDFs
 
-## Objective
-- Gain experience with signed distance functions
-- Experiment with animation curves
+## Steven Galban, PennKey: sgalban
 
-## Base Code
-The code we have provided for this assignment features the following:
-- A square that spans the range [-1, 1] in X and Y that is rendered with a
-shader that does not apply a projection matrix to it, thus rendering it as the
-entirety of your screen
-- TypeScript code just like the code in homework 1 to set up a WebGL framework
-- Code that passes certain camera attributes (listed in the next section),
-the screen dimensions, and a time counter to the shader program.
+![](img/ss1.png)
 
-## Assignment Requirements
-- __(10 points)__ Modify the provided `flat-frag.glsl` to cast rays from a
-virtual camera. We have set up uniform variables in your shader that take in
-the eye position, reference point position, and up vector of the `Camera` in
-the provided TypeScript code, along with a uniform that stores the screen width
-and height. Using these uniform variables, and only these uniform variables,
-you must write a function that uses the NDC coordinates of the current fragment
-(i.e. its fs_Pos value) and projects a ray from that pixel. Refer to the [slides
-on ray casting](https://docs.google.com/presentation/d/e/2PACX-1vSN5ntJISgdOXOSNyoHimSVKblnPnL-Nywd6aRPI-XPucX9CeqzIEGTjFTwvmjYUgCglTqgvyP1CpxZ/pub?start=false&loop=false&delayms=60000&slide=id.g27215b64c6_0_107)
-from CIS 560 for reference on how to cast a ray without an explicit
-view-projection matrix. You'll have to compute your camera's Right vector based
-on the provided Up vector, Eye point, and Ref point. You can test your ray
-casting function by converting your ray directions to colors using the formula
-`color = 0.5 * (dir + vec3(1.0, 1.0, 1.0))`. If your screen looks like the
-following image, your rays are being cast correctly:
-![](rayDir.png)
-- __(70 points)__ Create and animate a scene using signed distance functions.
-The subject of your scene can be anything you like, provided your scene includes
-the following elements:
-  - The SDF combination operations Intersection, Subtraction, and Smooth Blend
-  - Raymarch optimization by way of bounding volumes around SDFs, arranged in
-  a Bounding Volume Hierarchy
-  - Animation of at least two scene attributes such as color, position, scale,
-  twist, rotation, texture, or anything else you can think of
-  - At least two functions mentioned in the Toolbox Functions slides used for
-  animation
-  - Procedural texturing using toolbox functions and/or noise functions
-  - Shading that involves surface normal computation
+## SDFs
+- I included a variety of primitive SDFs, including, but not limited to, spheres, boxes, 2-dimensional triangles, toruses,
+and capped cones. Sphere marching is used to test against these equations.
+- I included functions that translated and rotated the reference frame so that the SDFs could be transformed as appropriate. I did not include any functions to scale the reference frame, as I included enough parameters in my primitive SDFs for this not to be neccessary for this scene.
+- I wrote functions that find the union, difference, and intersection of 2 SDFs. I included a parameter to determine how smoothly the shapes are blended.
+  -Union is used to form the hull of the ship and the fire it emits
+  -Intersection is used to give the planet a sharp ring
+  -Subtraction is used to make a hole in the hull that a spherical window could be placed in.
+- I calculated the normal at every point in the scene by finding the gradient difference for all 3 components, and then normalizing those values into a single vector.
+- Once a ray hits an SDF, it produces an SdfPoint struct. This allows me to include valuable information regarding the SDF,
+in addition to the distance, including the object material and the normal at the point it was hit.
+- I did use a bounding box on the ship itself. Unforunately, because of time constraints, I was unable to optimize further.
+- Altogether, I used the primitive shapes to produce a simple spaceship scene seen above.
 
-- __(10 points)__ Add GUI elements via dat.GUI that allow the user to modify at
-least two different attributes of your scene.
+## Shaders
+- Because I calculated normals, I was able to make a variety of interesting shaders
+  - Several objects have a simple lambertian shader, which simply multiplies the base color by the dot of the camera forward vector and the normal.
+  - I have the hull of my ship a simple blinn-phong shader
+  - The firey blobs emmited from the ship aren't effected by light, and instead use a frenel coefficient to LERP between two firey colors.
+  - The rings of the planet use a lambertian coefficient, but they also include some fresnel to lerp between colors
+  - The ship window has a reflexive material. If a ray hit it, instead of ending the raymarching, the direction of the ray was simply reflected. The final material is a mix of some blinn-phong and the reflection. The stars don't do this material much justice, but the reflection of the planet can be seen when it comes zooming by.
+  - If a ray doesn't hit anything, a background color is generated based on the ray direction. The ray is first mapped to a cube (with side length 20), and then on each individual face, I generate some worley noise. If the projected point is within a small distance to it's cells random point, it becomes star-colored. This ensures that the starts are uniformly distributed, and don't get cut off. The distance the projected point needs to be from the center of the star depends on both the time and position. This gives all the stars a "twinkling" effect. Technically, there's no atmosphere in space to make the stars twinkle like that, but I thought it was worth sacrificing some physical accuracy.
 
-- __(10 points)__ Following the specifications listed
-[here](https://github.com/pjcozzi/Articles/blob/master/CIS565/GitHubRepo/README.md),
-create your own README.md, renaming this file to INSTRUCTIONS.md. Don't worry
-about discussing runtime optimization for this project. Make sure your
-README contains the following information:
-  - Your name and PennKey
-  - Citation of any external resources you found helpful when implementing this
-  assignment.
-  - A link to your live github.io demo (refer to the pinned Piazza post on
-    how to make a live demo through github.io)
-  - An explanation of the techniques you used to generate your planet features.
-  Please be as detailed as you can; not only will this help you explain your work
-  to recruiters, but it helps us understand your project when we grade it!
+## Controls
+- "Time Speed" changes the rate at which time passes. This effects the movement of the ship, the fire, the planet, and the twinkling of the stars.
+- The 3 "Light Direction" parameters allow the user to set the direction of the light vector. Because DAT.GUI doesn't easily allow for controllable vectors, I had to have each component as a separate control. However, if a user adjusts one of the components, the 3 automatically renormalize, preventing the user from inputting a non-unit vector.
 
-## Useful Links
-- [IQ's Article on SDFs](http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm)
-- [IQ's Article on Smooth Blending](http://www.iquilezles.org/www/articles/smin/smin.htm)
-- [IQ's Article on Useful Functions](http://www.iquilezles.org/www/articles/functions/functions.htm)
-- [Breakdown of Rendering an SDF Scene](http://www.iquilezles.org/www/material/nvscene2008/rwwtt.pdf)
+## Sources Referenced
+- I heavily referenced IQ's blog post on raymarching and SDFs (https://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm). Many of the primitives, techniques, and transformations I used were taken directly from here (although, modified a bit to fit my needs)
+- I referenced a different blog (http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions/) to give some intuition as to what I was doing early on in the assignment.
+- It's been awhile since I've done any complex surface shading, so I referenced this article (https://learnopengl.com/Advanced-Lighting/Advanced-Lighting) to refresh myself on blinn-phong.
+- This stackexchange post (https://math.stackexchange.com/questions/13261/how-to-get-a-reflection-vector) helped me with some of the math regarding my reflections.
 
-
-## Submission
-Commit and push to Github, then submit a link to your commit on Canvas. Remember
-to make your own README!
-
-## Inspiration
-- [Alien Corridor](https://www.shadertoy.com/view/4slyRs)
-- [The Evolution of Motion](https://www.shadertoy.com/view/XlfGzH)
-- [Fractal Land](https://www.shadertoy.com/view/XsBXWt)
-- [Voxel Edges](https://www.shadertoy.com/view/4dfGzs)
-- [Snail](https://www.shadertoy.com/view/ld3Gz2)
-- [Cubescape](https://www.shadertoy.com/view/Msl3Rr)
-- [Journey Tribute](https://www.shadertoy.com/view/ldlcRf)
-- [Stormy Landscape](https://www.shadertoy.com/view/4ts3z2)
-- [Generators](https://www.shadertoy.com/view/Xtf3Rn)
-
-## Extra Credit (20 points maximum)
-- __(5 - 20 pts)__ Do some research into more advanced shading techniques such
-as ambient occlusion, soft shadows, GGX materials, depth of field, volumetrics,
-etc. and implement one of them. The more complex your feature, the more points
-you'll earn.
-- __(? pts)__ Propose an extra feature of your own!
+## Deployment
+https://sgalban.github.io/hw02-raymarching-sdfs/

@@ -30,10 +30,46 @@ struct SdfPoint {
     vec3 hitPos;
 };
 
-struct BoundingBox {
-    vec3 corner;
-    vec3 dimensions;
-};
+bool hitBoundingBox(vec3 bbCenter, vec3 dimensions, vec3 origin, vec3 rayDir) {
+    bbCenter =  bbCenter - origin;
+    float xmin = bbCenter.x - dimensions.x;
+    float ymin = bbCenter.y - dimensions.y;
+    float zmin = bbCenter.z - dimensions.z;
+    float xmax = bbCenter.x + dimensions.x;
+    float ymax = bbCenter.y + dimensions.y;
+    float zmax = bbCenter.z + dimensions.z;
+
+    if (rayDir.x != 0.0) {
+        float tx1 = xmin / rayDir.x;
+        if (tx1 >= 0.0) {
+            vec3 intersection = rayDir * tx1;
+            if (intersection.y >= ymin && intersection.y <= ymax && intersection.z >= zmin && intersection.z <= zmax) {
+                return true;
+            }    
+        }
+    }
+    if (rayDir.y != 0.0) {
+        float ty1 = ymin / rayDir.y;
+        if (ty1 >= 0.0) {
+            vec3 intersection = rayDir * ty1;
+            if (intersection.x >= xmin && intersection.x <= xmax && intersection.z >= zmin && intersection.z <= zmax) {
+                return true;
+            }    
+        }
+    }
+    if (rayDir.z != 0.0) {
+        float tz1 = zmin / rayDir.z;
+        if (tz1 >= 0.0) {
+            vec3 intersection = rayDir * tz1;
+            if (intersection.y >= ymin && intersection.y <= ymax && intersection.x >= xmin && intersection.x <= xmax) {
+                return true;
+            }    
+        }
+        return true;
+    }
+    return false;
+
+}
 
 vec2 random2(vec2 p, vec2 seed) {
     return fract(sin(vec2(dot(p + seed, vec2(311.7, 127.1)), dot(p + seed, vec2(269.5, 183.3)))) * 85734.3545);
@@ -153,53 +189,75 @@ float smoothInOut(float t) {
 
 // This is where the actual scene is constructed
 // Each separate sdf should be included with an andSdf
-SdfPoint totalSdf(vec3 p) {
+SdfPoint totalSdf(vec3 p, vec3 origin, vec3 rayDir, bool ignoreBoxes) {
+    float sphere1 = 10000.0;
+    float sphere2 = 10000.0;
+    float sphere3 = 10000.0;
+    float ring = 10000.0;
+    float box1 = 10000.0;
+    float capsule1 = 10000.0;
+    float wings = 10000.0;
+    float bubble = 10000.0;
+    float cone1 = 10000.0;
+    float cone2 = 10000.0;
+    float cone3 = 10000.0;
+    float cone4 = 10000.0;
+    float bubble1 = 10000.0;
+    float bubble2 = 10000.0;
+    float bubble3 = 10000.0;
+    float bubble4 = 10000.0;
+
+    vec3 shipOffset = vec3(2.0 * cos(u_Time * 0.006), sin(u_Time * 0.01), 0);
+    float test = boxSdf(-shipOffset, vec3(3, 2, 2.5), p);
 
     float planetOffset = mod(u_Time * 0.5, 200.0);
     translateSdf(p, vec3(planetOffset, 0, 0));
-    float sphere3 = sphereSdf(vec3(100, 0, 7), 2.0, p);
-    float ring = intersectSdf(
+    sphere3 = sphereSdf(vec3(100, 0, 7), 2.0, p);
+
+    ring = intersectSdf(
         torusSdf(vec3(100, 0.5, 7), 3.0, 0.8, p),
         torusSdf(vec3(100, -0.5, 7), 3.0, 0.8, p),
         0.05
     );
     translateSdf(p, vec3(-planetOffset, 0, 0));
 
-    translateSdf(p, vec3(2.0 * cos(u_Time * 0.006), sin(u_Time * 0.01), 0.0));
+    translateSdf(p, shipOffset);
 
-    float sphere1 = sphereSdf(vec3(1, 0, 0), 1.1, p);
-    float box1 = boxSdf(vec3(1.4, 0.5, 0), vec3(0.6, 0.6, 1.0), p);
-    float capsule1 = capsuleSdf(vec3(0), vec3(-1, 0, 0), vec3(1, 0, 0), 1.0, p);
+    if (ignoreBoxes || hitBoundingBox(-shipOffset, vec3(3.0, 2.0, 2.5) * 5.0, origin, rayDir)) {
+        sphere1 = sphereSdf(vec3(1, 0, 0), 1.1, p);
+        box1 = boxSdf(vec3(1.4, 0.5, 0), vec3(0.6, 0.6, 1.0), p);
+        capsule1 = capsuleSdf(vec3(0), vec3(-1, 0, 0), vec3(1, 0, 0), 1.0, p);
 
-    float wings = unionSdf(
-        triangleSdf(vec3(0), vec3(0.0, 0, 1), vec3(-0.8, 0, 1), vec3(-0.6, 0, 2.0), p) - 0.3,
-        triangleSdf(vec3(0), vec3(0.0, 0, -1), vec3(-0.8, 0, -1), vec3(-0.6, 0, -2.0), p) - 0.3, 0.0
-    );
+        wings = unionSdf(
+            triangleSdf(vec3(0), vec3(0.0, 0, 1), vec3(-0.8, 0, 1), vec3(-0.6, 0, 2.0), p) - 0.3,
+            triangleSdf(vec3(0), vec3(0.0, 0, -1), vec3(-0.8, 0, -1), vec3(-0.6, 0, -2.0), p) - 0.3, 0.0
+        );
+
+        translateSdf(p, vec3(2, 0, 0));
+        rotateSdf(p, 90.0, ZAXIS);
+        cone1 = cappedConeSdf(vec3(0), 0.5, 1.7, 1.2, p);
+        translateSdf(p, vec3(0, 0.8, 0));
+        cone2 = cappedConeSdf(vec3(0), 0.5, 1.4, 0.8, p);
+        translateSdf(p, vec3(0, -0.3, 0));
+        cone3 = cappedConeSdf(vec3(0), 0.35, 0.7, 0.5, p);
+        translateSdf(p, vec3(0, 0.8, 0));
+        cone4 = cappedConeSdf(vec3(0), 0.35, 0.5, 0.3, p);
+        translateSdf(p, vec3(0, -3.3, 0));
+        sphere2 = sphereSdf(vec3(0, 1, 0), 1.1, p);
+        rotateSdf(p, -90.0, ZAXIS);
+    }
 
     translateSdf(p, vec3(2, 0, 0));
-    rotateSdf(p, 90.0, ZAXIS);
-    float cone1 = cappedConeSdf(vec3(0), 0.5, 1.7, 1.2, p);
-    translateSdf(p, vec3(0, 0.8, 0));
-    float cone2 = cappedConeSdf(vec3(0), 0.5, 1.4, 0.8, p);
-    translateSdf(p, vec3(0, -0.3, 0));
-    float cone3 = cappedConeSdf(vec3(0), 0.35, 0.7, 0.5, p);
-    translateSdf(p, vec3(0, 0.8, 0));
-    float cone4 = cappedConeSdf(vec3(0), 0.35, 0.5, 0.3, p);
-    translateSdf(p, vec3(0, -1.3, 0));
-    rotateSdf(p, -90.0, ZAXIS);
-
     float bubbleFactor = mod(u_Time * 0.1, 3.0) / 3.0;
-    float bubble1 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, 0, 0), 1.2 * smoothInOut(bubbleFactor), p);
+    bubble1 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, 0, 0), 1.2 * smoothInOut(bubbleFactor), p);
     bubbleFactor = mod(u_Time * 0.1, 4.0) / 4.0;
-    float bubble2 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, 0.5, 0.5), smoothInOut(bubbleFactor) * 0.5, p);
+    bubble2 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, 0.5, 0.5), smoothInOut(bubbleFactor) * 0.5, p);
     bubbleFactor = mod(u_Time * 0.1, 2.0) / 2.0;
-    float bubble3 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, -0.3, 0.6), smoothInOut(bubbleFactor) * 0.7, p);
+    bubble3 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, -0.3, 0.6), smoothInOut(bubbleFactor) * 0.7, p);
     bubbleFactor = mod(u_Time * 0.1, 3.0) / 3.0;
-    float bubble4 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, 0.7, -0.6), smoothInOut(bubbleFactor), p);
-    float bubble = unionSdf(unionSdf(bubble1, bubble2, 0.7), unionSdf(bubble3, bubble4, 0.7), 0.7);
-
+    bubble4 = sphereSdf(vec3(-1.0 - bubbleFactor * 6.0, 0.7, -0.6), smoothInOut(bubbleFactor), p);
+    bubble = unionSdf(unionSdf(bubble1, bubble2, 0.7), unionSdf(bubble3, bubble4, 0.7), 0.7);
     translateSdf(p, vec3(-2, 0, 0));
-    float sphere2 = sphereSdf(vec3(1, 0, 0), 1.1, p);
 
     // Body
     SdfPoint res = toSdfPoint(unionSdf(
@@ -215,6 +273,7 @@ SdfPoint totalSdf(vec3 p) {
     // Planet
     res = andSdf(res, sphere3, 6);
     res = andSdf(res, ring, 5);
+    //res = andSdf(res, test, 1);
     return res;
 }
 
@@ -223,9 +282,9 @@ vec3 getNormal(vec3 p) {
     vec3 dy = vec3(0, EPSILON, 0);
     vec3 dz = vec3(0, 0, EPSILON);
 
-    float gradX = totalSdf(p + dx).distance - totalSdf(p - dx).distance;
-    float gradY = totalSdf(p + dy).distance - totalSdf(p - dy).distance;
-    float gradZ = totalSdf(p + dz).distance - totalSdf(p - dz).distance;
+    float gradX = totalSdf(p + dx, vec3(0), vec3(0), true).distance - totalSdf(p - dx, vec3(0), vec3(0), true).distance;
+    float gradY = totalSdf(p + dy, vec3(0), vec3(0), true).distance - totalSdf(p - dy, vec3(0), vec3(0), true).distance;
+    float gradZ = totalSdf(p + dz, vec3(0), vec3(0), true).distance - totalSdf(p - dz, vec3(0), vec3(0), true).distance;
     return -normalize(vec3(gradX, gradY, gradZ));
 }
 
@@ -284,10 +343,13 @@ SdfPoint raycast(vec3 rayDir) {
     float acInfluence = 0.0;
     vec3 hitRayDir = rayDir;
 
+    vec3 curOrigin = u_Eye;
+    vec3 curRay = rayDir;
+
     int curIteration = 0;
-    while(distance(curPoint, u_Eye) < FAR_CLIP && curIteration < MAX_ITERATIONS) {
+    while(distance(curPoint, curOrigin) < FAR_CLIP && curIteration < MAX_ITERATIONS) {
         curIteration++;
-        curSdf = totalSdf(curPoint);
+        curSdf = totalSdf(curPoint, curOrigin, curRay, false);
         if (abs(curSdf.distance) < EPSILON) {
             // Material 3 is reflexive, so we have to keep going even if we hit it
             if (curSdf.material == 3) {
@@ -305,6 +367,9 @@ SdfPoint raycast(vec3 rayDir) {
                 addedColor += clamp(vec3(fresnelFactor) + vec3(spec), vec3(0), vec3(1));
                 acInfluence = acInfluence + (1.0 - acInfluence) * 0.25;
                 hitRayDir = rayDir;
+
+                curOrigin = curPoint;
+                curRay = hitRayDir;
 
             }
             else {

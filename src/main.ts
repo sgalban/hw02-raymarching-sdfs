@@ -53,6 +53,8 @@ function main() {
   gui.add(controls, "Light Direction X", -1.0, 1.0).listen();
   gui.add(controls, "Light Direction Y", -1.0, 1.0).listen();
   gui.add(controls, "Light Direction Z", -1.0, 1.0).listen();
+  controls["Light Direction X"] = -0.6666;
+  controls["Light Direction Y"] = -0.6666;
 
   // get canvas and webgl context
   const canvas = <HTMLCanvasElement> document.getElementById('canvas');
